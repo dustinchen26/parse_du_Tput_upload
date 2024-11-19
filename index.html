@@ -143,16 +143,39 @@
         let ulChart = null;
         let currentFile = null;
         let fileReader = new FileReader();
-        let offset = 0;  // Declare and initialize the offset variable here.
+        let offset = 0;
 
         window.onload = function() {
+            resetDisplay();
+        };
+
+        function resetDisplay() {
+            // Reset variables
+            times = [];
+            dlTpts = [];
+            ulTpts = [];
+            offset = 0;
+
+            // Reset the table
+            const tableBody = document.querySelector("#resultTable tbody");
+            tableBody.innerHTML = "";
+
+            // Reset the charts
+            if (dlChart) dlChart.destroy();
+            if (ulChart) ulChart.destroy();
+
             document.getElementById('dlChart').style.display = 'none';
             document.getElementById('ulChart').style.display = 'none';
             document.getElementById('dlChartTitle').style.display = 'block';
             document.getElementById('ulChartTitle').style.display = 'block';
-        };
+
+            // Reset progress bar
+            updateProgress(0);
+        }
 
         function handleFileUpload() {
+            resetDisplay();  // Reset the display and variables for the new file
+
             const fileInput = document.getElementById('fileInput');
             currentFile = fileInput.files[0];
 
@@ -162,10 +185,6 @@
                 let chunkCount = Math.ceil(fileSize / chunkSize);
                 let chunkIndex = 0;
 
-                times = [];
-                dlTpts = [];
-                ulTpts = [];
-                
                 updateProgress(0); // Initialize progress bar
 
                 fileReader.onload = function(event) {
@@ -229,13 +248,6 @@
             document.getElementById('ulChart').style.display = 'block';
             document.getElementById('dlChartTitle').style.display = 'none';
             document.getElementById('ulChartTitle').style.display = 'none';
-
-            if (dlChart) {
-                dlChart.destroy();
-            }
-            if (ulChart) {
-                ulChart.destroy();
-            }
 
             const ctxDl = document.getElementById('dlChart').getContext('2d');
             dlChart = new Chart(ctxDl, {
