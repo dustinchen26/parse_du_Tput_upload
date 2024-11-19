@@ -70,6 +70,7 @@
             padding: 5px;
             font-size: 14px;
         }
+        /* 新增進度條容器 */
         #progressContainer {
             width: 100%;
             background: #f3f3f3;
@@ -97,6 +98,13 @@
 
     <input type="file" id="fileInput" accept=".txt" onchange="handleFileUpload()" />
 
+    <!-- 進度條容器 -->
+    <div id="progressContainer">
+        <div id="progressBar">
+            <div id="progressText">0%</div>
+        </div>
+    </div>
+
     <div class="chart-titles">
         <div class="chart-title" id="dlChartTitle">DL Tpt</div>
         <div class="chart-title" id="ulChartTitle">UL Tpt</div>
@@ -123,12 +131,6 @@
             </thead>
             <tbody></tbody>
         </table>
-    </div>
-
-    <div id="progressContainer">
-        <div id="progressBar">
-            <div id="progressText">0%</div>
-        </div>
     </div>
 
     <script>
@@ -264,6 +266,7 @@
                 ['Time', 'DL Tpt', 'UL Tpt'],
                 ...times.map((time, index) => [time, dlTpts[index], ulTpts[index]])
             ];
+
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'GNB DU Stats');
