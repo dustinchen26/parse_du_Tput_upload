@@ -11,11 +11,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GNB DU Statistics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.2/xlsx.full.min.js"></script> <!-- 引入 SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.2/xlsx.full.min.js"></script>
     <style>
         body {
             font-size: 14px;
-            font-family: Roboto, sans-serif;
             font-family: Arial, sans-serif;
             margin: 20px;
         }
@@ -33,39 +32,25 @@
             padding: 10px;
             text-align: center;
         }
-
-        /* 設置表格列寬 */
-        th:nth-child(1), td:nth-child(1) {
-            width: 20%;  /* 時間欄寬度 */
-        }
-        th:nth-child(2), td:nth-child(2) {
-            width: 5%;  /* DL Tpt欄寬度 */
-        }
-        th:nth-child(3), td:nth-child(3) {
-            width: 5%;  /* UL Tpt欄寬度 */
-        }
-
-        /* Flexbox布局，並排顯示兩個圖表 */
+        th:nth-child(1), td:nth-child(1) { width: 20%; }
+        th:nth-child(2), td:nth-child(2) { width: 5%; }
+        th:nth-child(3), td:nth-child(3) { width: 5%; }
         .charts {
-            display: flex; /* 使用flex布局讓圖表並排 */
-            justify-content: space-between; /* 保持兩者對齊 */
-            gap: 20px; /* 增加間距，避免圖表太擠 */
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
             margin-top: 20px;
-            width: 100%; /* 使容器寬度自適應 */
+            width: 100%;
         }
-
         .chart-container {
-            flex: 1 1 50%; /* 每個圖表容器佔50%寬度，確保並排 */
-            padding: 0; /* 去除容器的內邊距 */
-            margin: 0; /* 去除容器的外邊距 */
+            flex: 1 1 50%;
+            padding: 0;
+            margin: 0;
         }
-
         canvas {
-            width: 100% !important; /* 讓canvas占滿容器的寬度 */
-            height: 100% !important; /* 讓canvas占滿容器的高度 */
+            width: 100% !important;
+            height: 100% !important;
         }
-
-        /* 讓標題區域自適應 */
         .chart-titles {
             display: flex;
             justify-content: space-between;
@@ -74,37 +59,49 @@
             text-align: center;
             width: 100%;
         }
-
         .chart-title {
             flex: 1;
             text-align: center;
         }
-
-        /* 讓文件上傳框顯示完整檔案名稱 */
         #fileInput {
-            width: 100%; /* 設定為 100%，自適應容器寬度 */
-            max-width: 600px; /* 設定最大寬度，避免過長 */
+            width: 100%;
+            max-width: 600px;
             margin-top: 10px;
             padding: 5px;
             font-size: 14px;
+        }
+        #progressContainer {
+            width: 100%;
+            background: #f3f3f3;
+            border-radius: 10px;
+            height: 20px;
+            margin-top: 20px;
+        }
+        #progressBar {
+            width: 0;
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 10px;
+        }
+        #progressText {
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <h2>GNB DU Statistics Input</h2>
     <p style="margin: 0;">Author: Dustin_Chen, email: <a href="mailto:Dustin_Chen@compal.com">Dustin_Chen@compal.com</a> or <a href="mailto:chuhpsdustin@gmail.com">chuhpsdustin@gmail.com</a></p>
-    <br>
 
-    <!-- 文件上傳輸入 -->
     <input type="file" id="fileInput" accept=".txt" onchange="handleFileUpload()" />
 
-    <!-- 文字標題區域 -->
     <div class="chart-titles">
         <div class="chart-title" id="dlChartTitle">DL Tpt</div>
         <div class="chart-title" id="ulChartTitle">UL Tpt</div>
     </div>
 
-    <!-- 圖表區域，並排顯示 -->
     <div class="charts">
         <div class="chart-container">
             <canvas id="dlChart"></canvas>
@@ -114,7 +111,6 @@
         </div>
     </div>
 
-    <!-- 表格區域在圖表區域之下 -->
     <div id="output">
         <h2>提取結果</h2>
         <table id="resultTable">
@@ -129,14 +125,22 @@
         </table>
     </div>
 
+    <div id="progressContainer">
+        <div id="progressBar">
+            <div id="progressText">0%</div>
+        </div>
+    </div>
+
     <script>
         let times = [];
         let dlTpts = [];
         let ulTpts = [];
-        let dlChart = null; // 使用變數來存儲圖表對象
+        let dlChart = null;
         let ulChart = null;
+        let currentFile = null;
+        let fileReader = new FileReader();
+        let offset = 0;  // Declare and initialize the offset variable here.
 
-        // 初始情況顯示提示文字，並隱藏圖表
         window.onload = function() {
             document.getElementById('dlChart').style.display = 'none';
             document.getElementById('ulChart').style.display = 'none';
@@ -146,30 +150,49 @@
 
         function handleFileUpload() {
             const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+            currentFile = fileInput.files[0];
 
-            if (file) {
-                const reader = new FileReader();
+            if (currentFile) {
+                const fileSize = currentFile.size;
+                const chunkSize = 1024 * 1024 * 10; // 10MB per chunk
+                let chunkCount = Math.ceil(fileSize / chunkSize);
+                let chunkIndex = 0;
+
+                times = [];
+                dlTpts = [];
+                ulTpts = [];
                 
-                reader.onload = function(event) {
-                    const fileContent = event.target.result;
-                    parseInput(fileContent); // 使用讀取的文件內容進行解析
+                updateProgress(0); // Initialize progress bar
+
+                fileReader.onload = function(event) {
+                    parseInput(event.target.result);
+                    chunkIndex++;
+                    updateProgress((chunkIndex / chunkCount) * 100);
+
+                    if (chunkIndex < chunkCount) {
+                        readNextChunk();
+                    } else {
+                        updateTable();
+                        updateCharts();
+                        downloadExcel();
+                    }
                 };
 
-                reader.readAsText(file); // 以文本方式讀取文件
+                readNextChunk();
             }
+            }
+
+        function readNextChunk() {
+            const chunkSize = 1024 * 1024 * 10; // 10MB per chunk
+            const blob = currentFile.slice(offset, offset + chunkSize);
+            fileReader.readAsText(blob);
+            offset += chunkSize; // Update offset after reading the chunk
         }
 
         function parseInput(fileContent) {
             const timeRegex = /GNB DU Statistics\s+(.*?\s\d{4})/g;
             const statsRegex = /SCH\s+DL\s+Tpt\s+:\s+([\d\.]+)\s+UL\s+Tpt\s+([\d\.]+)/g;
 
-            // 重設數據
-            times = [];
-            dlTpts = [];
-            ulTpts = [];
-
-            // 開始解析數據
             let timeMatch;
             while ((timeMatch = timeRegex.exec(fileContent)) !== null) {
                 const time = timeMatch[1].trim();
@@ -184,18 +207,11 @@
                     ulTpts.push(ulTpt);
                 }
             }
-
-            // 更新表格和圖表
-            updateTable();
-            updateCharts();
-
-            // 觸發 Excel 下載
-            downloadExcel();
         }
 
         function updateTable() {
             const tableBody = document.querySelector("#resultTable tbody");
-            tableBody.innerHTML = ""; // 清除現有的表格資料
+            tableBody.innerHTML = "";
 
             for (let i = 0; i < times.length; i++) {
                 const row = document.createElement("tr");
@@ -205,145 +221,52 @@
         }
 
         function updateCharts() {
-            // 顯示圖表並隱藏標題文字
             document.getElementById('dlChart').style.display = 'block';
             document.getElementById('ulChart').style.display = 'block';
             document.getElementById('dlChartTitle').style.display = 'none';
             document.getElementById('ulChartTitle').style.display = 'none';
 
-            // 清除之前的圖表，如果存在
             if (dlChart) {
-                dlChart.destroy(); // 銷毀舊的 DL 圖表
+                dlChart.destroy();
             }
             if (ulChart) {
-                ulChart.destroy(); // 銷毀舊的 UL 圖表
+                ulChart.destroy();
             }
 
-            // 生成新的 DL 圖表
             const ctxDl = document.getElementById('dlChart').getContext('2d');
             dlChart = new Chart(ctxDl, {
                 type: 'line',
                 data: {
                     labels: times,
-                    datasets: [{
-                        label: 'DL Tpt',
-                        data: dlTpts,
-                        borderColor: 'blue',
-                        fill: false,
-                    }]
-                },
-                options: {
-                    responsive: true, // 開啟自適應模式
-                    maintainAspectRatio: false, // 允許圖表在變更大小時改變比例
-                    title: {
-                        display: true, 
-                        text: 'DL Tpt over Time',
-                        font: {
-                            size: 18, // 增大標題文字大小
-                        }
-                    },
-                    scales: {
-                        x: { 
-                            title: { 
-                                display: true, 
-                                text: 'Time',
-                                font: {
-                                    size: 16 // X 軸文字大小
-                                }
-                            },
-                            ticks: {
-                                font: {
-                                    size: 14 // 控制X軸文字大小
-                                }
-                            }
-                        },
-                        y: { 
-                            title: { 
-                                display: true, 
-                                text: 'DL Tpt',
-                                font: {
-                                    size: 16 // Y 軸文字大小
-                                }
-                            },
-                            ticks: {
-                                font: {
-                                    size: 14 // 控制Y軸文字大小
-                                }
-                            }
-                        }
-                    }
+                    datasets: [{ label: 'DL Tpt', data: dlTpts, borderColor: 'blue', fill: false }]
                 }
             });
 
-            // 生成新的 UL 圖表
             const ctxUl = document.getElementById('ulChart').getContext('2d');
             ulChart = new Chart(ctxUl, {
                 type: 'line',
                 data: {
                     labels: times,
-                    datasets: [{
-                        label: 'UL Tpt',
-                        data: ulTpts,
-                        borderColor: 'green',
-                        fill: false,
-                    }]
-                },
-                options: {
-                    responsive: true, // 開啟自適應模式
-                    maintainAspectRatio: false, // 允許圖表在變更大小時改變比例
-                    title: {
-                        display: true,
-                        text: 'UL Tpt over Time',
-                        font: {
-                            size: 18, // 增大標題文字大小
-                        }
-                    },
-                    scales: {
-                        x: { 
-                            title: { 
-                                display: true, 
-                                text: 'Time',
-                                font: {
-                                    size: 16 // X 軸文字大小
-                                }
-                            },
-                            ticks: {
-                                font: {
-                                    size: 14 // 控制X軸文字大小
-                                }
-                            }
-                        },
-                        y: { 
-                            title: { 
-                                display: true, 
-                                text: 'UL Tpt',
-                                font: {
-                                    size: 16 // Y 軸文字大小
-                                }
-                            },
-                            ticks: {
-                                font: {
-                                    size: 14 // 控制Y軸文字大小
-                                }
-                            }
-                        }
-                    }
+                    datasets: [{ label: 'UL Tpt', data: ulTpts, borderColor: 'green', fill: false }]
                 }
             });
         }
 
-        // 下載 Excel 表格
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            progressBar.style.width = `${percent}%`;
+            progressText.innerText = `${Math.round(percent)}%`;
+        }
+
         function downloadExcel() {
             const ws_data = [
-                ['Time', 'DL Tpt', 'UL Tpt'], // 表頭
-                ...times.map((time, index) => [time, dlTpts[index], ulTpts[index]]) // 表格資料
+                ['Time', 'DL Tpt', 'UL Tpt'],
+                ...times.map((time, index) => [time, dlTpts[index], ulTpts[index]])
             ];
-
-            const ws = XLSX.utils.aoa_to_sheet(ws_data); // 將資料轉換為 Sheet
-            const wb = XLSX.utils.book_new(); // 創建一個新的工作簿
-            XLSX.utils.book_append_sheet(wb, ws, 'GNB DU Stats'); // 將資料表添加到工作簿中
-
-            // 觸發下載
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'GNB DU Stats');
             XLSX.writeFile(wb, 'GNB_DU_Statistics.xlsx');
         }
     </script>
