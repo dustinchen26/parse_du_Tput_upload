@@ -144,6 +144,7 @@
         let currentFile = null;
         let fileReader = new FileReader();
         let offset = 0;
+        let fileName = "";  // To store the name of the uploaded file
 
         window.onload = function() {
             resetDisplay();
@@ -155,6 +156,7 @@
             dlTpts = [];
             ulTpts = [];
             offset = 0;
+            fileName = "";
 
             // Reset the table
             const tableBody = document.querySelector("#resultTable tbody");
@@ -180,6 +182,7 @@
             currentFile = fileInput.files[0];
 
             if (currentFile) {
+                fileName = currentFile.name.split('.').slice(0, -1).join('.');  // Extract file name without extension
                 const fileSize = currentFile.size;
                 const chunkSize = 1024 * 1024 * 10; // 10MB per chunk
                 let chunkCount = Math.ceil(fileSize / chunkSize);
@@ -284,7 +287,11 @@
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'GNB DU Stats');
-            XLSX.writeFile(wb, 'GNB_DU_Statistics.xlsx');
+
+            // Append '_excel' to the input file name for the output Excel file
+            const outputFileName = `${fileName}_excel.xlsx`;
+
+            XLSX.writeFile(wb, outputFileName);
         }
     </script>
 </body>
